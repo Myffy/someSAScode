@@ -1,0 +1,169 @@
+
+data elisa_new;
+	set acp.elisa1;
+run;
+
+data v0;
+	set elisa_new;
+		visit = 1;
+		CYSS = 	CYSS0;
+		IL6 = IL6draw1 ;
+		TNFa = TNFaDraw1;
+		F2ISO = F2Iso1	;
+		keep ID visit gender treatment smoke CYSS IL6 	TNFa F2Iso;
+run;
+data v2;
+	set elisa_new;
+		visit =2;
+		CYSS = 	CYSS4;
+		IL6 = IL6draw2 ;
+		TNFa = TNFaDraw2;
+		F2ISO = F2Iso2	;
+		keep ID visit gender treatment smoke CYSS IL6 	TNFa F2Iso;
+run;
+
+proc append data = v0 base = v2 ;
+run;
+proc sort data=v2; by   treatment ; run;
+data acp.vistacp; set work.v2; run;
+proc means data=v2 mean n missing;
+where visit= 1;
+by treatment;
+var IL6 TNFa CYSS F2iso; run;
+
+
+proc univariate data = v2 plot normal;
+	class treatment;
+	where visit = 2;
+		var CYSS;
+run;
+
+ods html;
+proc mixed data = v2;
+where smoke="S";
+	class ID visit treatment ;
+		*where CYSS ge 5;
+		model CYSS = visit treatment  visit*treatment /s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
+proc mixed data = v2;
+where smoke="NS";
+	class ID visit treatment ;
+		*where CYSS ge 5;
+		model CYSS = visit treatment  visit*treatment /s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
+ods html close;
+ods html;
+proc mixed data = v2;
+	class ID visit treatment;
+
+		model TNFA = visit treatment visit*treatment/s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
+proc mixed data = v2;
+where smoke="NS";
+class ID visit treatment;
+		model TNFA = visit treatment visit*treatment/s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
+proc mixed data = v2;
+	where smoke="S";class ID visit treatment;
+
+		model TNFA = visit treatment visit*treatment/s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
+ods html close;
+ods html;
+proc mixed data = v2;
+	class ID visit treatment smoke;
+	
+		model F2ISO= visit treatment visit*treatment treatment*smoke visit*smoke visit*treatment*smoke/s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment visit*treatment*smoke / pdiff cl;  * means & SE for table 2 by visit;
+run;
+ods html close;
+proc mixed data = v2;
+where smoke="NS";
+	class ID visit treatment smoke;
+	
+		model F2ISO = visit treatment  visit*treatment /s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
+proc mixed data = v2;
+where smoke="S";
+	class ID visit treatment smoke;
+	
+		model F2ISO = visit treatment  visit*treatment /s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
+* IL-6;
+
+data v2ln;
+	set v2;
+		lnil6 = log(IL6);
+		if ID = "A43" then treatment ="PLACEBO";
+		if ID = "A43" then sex="m";
+		if ID="A43" then smoke="NS";
+run; 
+proc sort data=v2ln; by treatment; run;
+data smoke; set v2ln; if smoke= "S"; run;
+proc sort data=smoke; by treatment; run;
+proc means data=smoke mean std n missing;
+where visit= 2;
+by treatment;
+var lnil6 ; run;
+
+proc univariate data = v2 plot normal;
+	class treatment;
+	where visit = 2;
+		var IL6;
+run;
+
+ods html;
+proc mixed data = v2ln;
+	class ID visit treatment ;
+		model lnil6  = visit treatment visit*treatment /s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
+proc mixed data = v2ln;
+where smoke="NS";
+	class ID visit treatment;
+		model lnil6  = visit treatment visit*treatment/s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
+proc mixed data = v2ln;
+where smoke="S" and gender="F" ;
+	class ID visit treatment;
+		model lnil6  = visit treatment visit*treatment/s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
+ods html close;
+
+proc mixed data = v2;
+where gender="F" and smoke="S";
+	class ID visit treatment ;
+		*where CYSS ge 5;
+		model tnfa = visit treatment  visit*treatment /s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
+proc mixed data = v2;
+where gender="M" and smoke="S";
+
+	class ID visit treatment ;
+		*where CYSS ge 5;
+		model f2iso = visit treatment  visit*treatment /s cl; *interaction will be abs treatment effect;
+			random int / subject = ID;
+		lsmeans visit*treatment / pdiff cl;  * means & SE for table 2 by visit;
+run;
