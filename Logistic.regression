@@ -1,0 +1,75 @@
+
+*import workign data set and creat new variables based on parameters;
+data work.compare1; set c.datafinal;
+if MOM_OUTCOME_1_SB_2_LB_GA_32_wk=1 then caseall=1;
+if MOM_OUTCOME_1_SB_2_LB_GA_32_wk=2 then caseall=0;
+if MOM_OUTCOME_1_SB_2_LB_GA_32_wk=3 then caseall=0;
+if MOM_OUTCOME_1_SB_2_LB_GA_32_wk=4 then caseall=0;
+if rel_ratio3ng = .  then telQuart=.;
+if rel_ratio3ng > 0.000001 and rel_ratio3ng < 0.79 then telQuart=1;
+if rel_ratio3ng > 0.79 and rel_ratio3ng < 2.52 then telQuart=2;
+if rel_ratio3ng > 2.52 and rel_ratio3ng < 5.70 then telQuart=3;
+if rel_ratio3ng > 5.70  then telQuart=4;
+if rel_ratio3ng = .  then telhigh=.;
+if rel_ratio3ng > 0.000001 and rel_ratio3ng < 2.52 then telhigh=0;
+if rel_ratio3ng > 2.52 then telhigh=2;
+lntel=log (rel_ratio3ng); *natural log transform telomere data;
+if slesum > 0 then sleany=1; if slesum=0 then sleany=0;
+if slesum > 4 then slehigh=1; if slesum<4 then slehigh=0;
+run;
+
+
+** determine baseline characteristics in population;
+proc sort data=compare1; by scrnstatus; run;
+proc surveyfreq data=c.datafinal missing;
+weight analwt5_stag24;tables quality*scrnstatus; run;
+
+
+**Adjusted Odds Ratio for maternal age, BMI, site of recruitment, race/ethnicity, bloodtype and smoking status;
+
+Proc surveylogistic data=compare1; 
+where rel_ratio3ng ne . and  type="H";
+weight  analwt5_stag24 ;
+class    sitenum raceeth bloodtype (ref="AB") smoke prepreg;
+model caseall (Event="1")=rel_ratio3ng age bmi sitenum 
+raceeth bloodtype smoke prepreg; 
+run; 
+Proc surveylogistic data=compare1; where rel_ratio3ng ne . and  type="H";
+weight  analwt5_stag24 ;
+class  telquart  sitenum raceeth bloodtype (ref="AB") prepreg ;
+model caseall (Event="1")=telquart age bmi sitenum
+raceeth bloodtype smoke prepreg; 
+run; 
+
+**Adjusted OR using pinclusion 0.1 for maternal age, BMI, site of recruitment, race/ethnicity, bloodtype and smoking status;
+
+Proc logistic data=compare1; where rel_ratio3ng ne .;
+weight  analwt5_stag24 ;
+class     raceeth   prepreg  sitenum bloodtype (ref="AB") smoke vitamin_prior;
+model caseall (Event="1")=rel_ratio3ng    
+raceeth   prepreg bloodtype smoke bmi sitenum vitamin_prior/selection=stepwise  slentry=0.1  ; 
+run; 
+Proc logistic data=compare1; where rel_ratio3ng ne .;
+weight  analwt5_stag24 ;
+class  telquart   raceeth   prepreg    ;
+model caseall (Event="1")=telquart  
+raceeth    prepreg   ;
+run; 
+Proc logistic data=compare1; where rel_ratio3ng ne .;
+weight  analwt5_stag24 ;
+class  telquart   raceeth   prepreg  sitenum;
+model caseall (Event="1")=telquart  age  
+raceeth    prepreg  sitenum ; 
+oddsratio telquart /at (prepreg="Nuliparious with previous losses");
+run; 
+Proc logistic data=compare1; where rel_ratio3ng ne .;
+weight  analwt5_stag24 ;
+class  telhigh   raceeth   prepreg  sitenum;
+model caseall (Event="1")=telhigh  age  
+raceeth    prepreg  sitenum prepreg*telhigh ; 
+oddsratio telhigh /at (prepreg="Multip w no SB, but previous losses <20 wks");
+oddsratio telhigh /at (prepreg="Never pregnant or only elect terminations");
+oddsratio telhigh /at (prepreg="Nuliparious with previous losses");
+
+oddsratio telhigh /at (prepreg="Multiparious with no losses");
+run; 
